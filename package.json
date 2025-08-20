@@ -1,0 +1,15 @@
+{
+  "name": "minhalista-backend",
+  "version": "1.0.0",
+  "description": "Backend Express do MVP Minha Lista",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "license": "MIT"
+}
