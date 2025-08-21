@@ -1,9 +1,11 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 // Variáveis do Supabase
 const SUPABASE_URL = process.env.SUPABASE_URL;
