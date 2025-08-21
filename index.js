@@ -1,69 +1,80 @@
-const express = require("express");
-const cors = require("cors");
-const { createClient } = require("@supabase/supabase-js");
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
-
-// CORS liberado no MVP; depois você pode restringir ao seu domínio
-app.use(cors({ origin: "*"}));
 app.use(express.json());
 
-// Variáveis de ambiente (vamos configurar no Render)
-const { SUPABASE_URL, SUPABASE_SERVICE_ROLE, PORT } = process.env;
+// Variáveis do Supabase
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
-  console.warn("⚠️ Faltam variáveis de ambiente SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE");
+async function supabaseQuery(table, method, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res.json();
 }
 
-// Cliente Supabase (service role só no servidor!)
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+// 1. Criar usuário
+app.post("/users", async (req, res) => {
+  const { name, email } = req.body;
+  const data = await supabaseQuery("istoeuquero_users", "POST", { name, email });
+  res.json(data);
+});
 
-// Rotas básicas
-app.get("/", (req, res) => res.send("OK - minhalista backend online"));
-app.get("/health", (req, res) => res.json({ status: "ok" }));
+// 2. Criar lista
+app.post("/wishlists", async (req, res) => {
+  const { user_id, title, description, event_date } = req.body;
+  const data = await supabaseQuery("istoeuquero_wishlists", "POST", { user_id, title, description, event_date });
+  res.json(data);
+});
 
-// Cria uma lista: { nome_usuario: "Tiago", itens: [{name, link, note}] }
-app.post("/api/lista", async (req, res) => {
-  try {
-    const { nome_usuario, itens } = req.body;
-    if (!nome_usuario || !Array.isArray(itens)) {
-      return res.status(400).json({ error: "nome_usuario e itens[] são obrigatórios" });
+// 3. Adicionar item na lista
+app.post("/wishlists/:wishlistId/items", async (req, res) => {
+  const { name, url } = req.body;
+  const { wishlistId } = req.params;
+  const data = await supabaseQuery("istoeuquero_wishlist_items", "POST", { wishlist_id: wishlistId, name, url });
+  res.json(data);
+});
+
+// 4. Marcar item como comprado
+app.put("/items/:itemId/buy", async (req, res) => {
+  const { buyer_name } = req.body;
+  const { itemId } = req.params;
+  const resData = await fetch(`${SUPABASE_URL}/rest/v1/istoeuquero_wishlist_items?id=eq.${itemId}`, {
+    method: "PATCH",
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ status: "comprado", buyer_name })
+  });
+  const data = await resData.json();
+  res.json(data);
+});
+
+// 5. Ver lista com itens
+app.get("/wishlists/:wishlistId", async (req, res) => {
+  const { wishlistId } = req.params;
+  const resData = await fetch(`${SUPABASE_URL}/rest/v1/istoeuquero_wishlist_items?wishlist_id=eq.${wishlistId}`, {
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
     }
-
-    const { data, error } = await supabase
-      .from("listas")
-      .insert([{ nome_usuario, itens }])
-      .select()
-      .single();
-
-    if (error) return res.status(500).json({ error: error.message });
-
-    // devolve só o id (pra gerar o link compartilhável)
-    res.json({ id: data.id });
-  } catch (e) {
-    res.status(500).json({ error: "Falha ao criar lista" });
-  }
+  });
+  const items = await resData.json();
+  res.json(items);
 });
 
-// Busca lista por ID (GET /api/lista/:id)
-app.get("/api/lista/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { data, error } = await supabase
-      .from("listas")
-      .select("id,nome_usuario,itens,criado_em")
-      .eq("id", id)
-      .single();
-
-    if (error || !data) return res.status(404).json({ error: "Lista não encontrada" });
-
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: "Falha ao buscar lista" });
-  }
-});
-
-app.listen(PORT || 3000, () => {
-  console.log(`🚀 Servidor ouvindo na porta ${PORT || 3000}`);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`🚀 IstoEuQuero Backend rodando na porta ${PORT}`);
 });
