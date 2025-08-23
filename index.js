@@ -94,7 +94,7 @@ app.post("/wishlists/:wishlistId/items", async (req, res) => {
 
     const data = await supabaseFetch(
       "istoeuquero_wishlist_items",
-      { method: "POST", body: { wishlist_id: wishlistId, name, url }, preferReturn: true }
+      { method: "POST", body: { wishlist_id: wishlistId, name, url, status: "disponivel", buyer_name: null }, preferReturn: true }
     );
     res.json(Array.isArray(data) ? data[0] : data);
   } catch (err) {
@@ -123,13 +123,11 @@ app.get("/wishlists/:wishlistId", async (req, res) => {
   try {
     const { wishlistId } = req.params;
 
-    // Busca dados da lista
     const listArr = await supabaseFetch(`istoeuquero_wishlists?id=eq.${wishlistId}`);
     const wishlist = Array.isArray(listArr) ? listArr[0] : listArr;
 
     if (!wishlist) return res.status(404).json({ error: "Lista não encontrada" });
 
-    // Busca itens da lista
     const items = await supabaseFetch(`istoeuquero_wishlist_items?wishlist_id=eq.${wishlistId}&order=created_at.asc`);
 
     res.json({ wishlist, items });
@@ -138,54 +136,29 @@ app.get("/wishlists/:wishlistId", async (req, res) => {
   }
 });
 
+// ---------- 6) Listar todos os usuários ----------
+app.get("/users", async (req, res) => {
+  try {
+    const data = await supabaseFetch("istoeuquero_users");
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// ---------- 7) Listar todas as listas de um usuário ----------
+app.get("/users/:userId/wishlists", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = await supabaseFetch(`istoeuquero_wishlists?user_id=eq.${userId}`);
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 // ----------------------------------------------------------------------------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 IstoEuQuero Backend rodando na porta ${PORT}`);
-});
-// Listar todos os usuários
-app.get("/users", async (req, res) => {
-  try {
-    const data = await supabaseQuery("istoeuquero_users", "GET");
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Listar todas as listas de um usuário
-app.get("/users/:userId/wishlists", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const data = await supabaseQuery("istoeuquero_wishlists", "GET", null, `user_id=eq.${userId}`);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Listar todos os usuários
-app.get("/users", async (req, res) => {
-  try {
-    const data = await supabaseQuery("istoeuquero_users", "GET");
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Listar todas as listas de um usuário
-app.get("/users/:userId/wishlists", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const data = await supabaseQuery(
-      "istoeuquero_wishlists",
-      "GET",
-      null,
-      `user_id=eq.${userId}`
-    );
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
