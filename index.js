@@ -143,3 +143,23 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 IstoEuQuero Backend rodando na porta ${PORT}`);
 });
+// Listar todos os usuários
+app.get("/users", async (req, res) => {
+  try {
+    const data = await supabaseQuery("istoeuquero_users", "GET");
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Listar todas as listas de um usuário
+app.get("/users/:userId/wishlists", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const data = await supabaseQuery("istoeuquero_wishlists", "GET", null, `user_id=eq.${userId}`);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
